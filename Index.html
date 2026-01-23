@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AutoVidia Pro | The Content Factory</title>
+    <title>AutoVidia Pro | AI Content Factory</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -21,9 +21,9 @@
         .btn-neon { background: linear-gradient(90deg, #ff00cc, #3333ff); box-shadow: 0 0 15px #ff00cc; }
         .btn-neon:hover { transform: scale(1.02); box-shadow: 0 0 30px #ff00cc; }
         @keyframes scan { 0% { top: 0%; } 100% { top: 100%; } }
-        .scanline { width: 100%; height: 2px; background: rgba(0, 242, 254, 0.3); position: absolute; animation: scan 4s linear infinite; }
-        ::-webkit-scrollbar { width: 5px; }
-        ::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
+        .scanline { width: 100%; height: 2px; background: rgba(0, 242, 254, 0.3); position: absolute; animation: scan 4s linear infinite; z-index: 10; pointer-events: none;}
+        .loader { width: 48px; height: 48px; border: 5px solid #FFF; border-bottom-color: #ff00cc; border-radius: 50%; display: inline-block; box-sizing: border-box; animation: rotation 1s linear infinite; }
+        @keyframes rotation { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
@@ -53,24 +53,21 @@
         function App() {
             const [screen, setScreen] = useState('splash'); 
             const [user, setUser] = useState(null);
-            const [plan, setPlan] = useState('Free');
             const [genre, setGenre] = useState('');
             const [styleDNA, setStyleDNA] = useState('');
             const [topic, setTopic] = useState('');
             const [loading, setLoading] = useState(false);
-            const [data, setData] = useState({ script: '', prompts: [] });
+            const [resultData, setResultData] = useState({ script: '', prompts: [] });
 
-            // --- AUTH LOGIC ---
+            // --- AUTH & PROFILE ---
             useEffect(() => {
                 setTimeout(() => {
                     auth.onAuthStateChanged((u) => {
                         if (u) {
                             setUser(u);
-                            const userRef = db.ref('users/' + u.uid);
-                            userRef.on('value', (snap) => {
-                                if (!snap.exists()) {
-                                    userRef.set({ name: u.displayName, email: u.email, photo: u.photoURL, plan: 'Free', created: Date.now() });
-                                } else { setPlan(snap.val().plan || 'Free'); }
+                            db.ref('users/' + u.uid).update({
+                                name: u.displayName,
+                                last_login: Date.now()
                             });
                             setScreen('genre');
                         } else { setScreen('login'); }
@@ -78,16 +75,15 @@
                 }, 3000);
             }, []);
 
-            const handleLogin = () => auth.signInWithPopup(provider);
-
-            // --- ASSET GENERATION (GEMINI) ---
+            // --- RE-BUILT ROBUST GENERATOR (FIXED 404/UNDEFINED) ---
             const generateAssets = async () => {
+                if(!topic || !styleDNA) return alert("Please fill Style and Topic!");
                 setLoading(true);
                 try {
-                    const promptText = `Niche: ${genre}. Style: ${styleDNA}. Topic: ${topic}. 
-                    Write a 60-second high-retention viral script. 
-                    Also provide 12 cinematic 8k image prompts matching the style DNA. 
-                    Format strictly as: SCRIPT: [text] PROMPTS: [p1, p2, p3...]`;
+                    const promptText = `Niche: ${genre}. Visual Style: ${styleDNA}. Topic: ${topic}. 
+                    Write a 60-second viral script. 
+                    Also provide 12 cinematic image prompts. 
+                    Format: SCRIPT: [text] PROMPTS: [p1, p2...]`;
 
                     const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`, {
                         method: 'POST',
@@ -103,35 +99,41 @@
                         })
                     });
 
-                    const json = await res.json();
-                    if (json.candidates && json.candidates[0]) {
-                        const rawText = json.candidates[0].content.parts[0].text;
+                    const data = await res.json();
+                    
+                    // Safety check for candidates[0]
+                    if (data.candidates && data.candidates[0] && data.candidates[0].content) {
+                        const rawText = data.candidates[0].content.parts[0].text;
                         const scriptPart = rawText.split('PROMPTS:')[0].replace('SCRIPT:', '').trim();
                         const promptPart = rawText.split('PROMPTS:')[1] ? rawText.split('PROMPTS:')[1].split('\n').filter(p => p.length > 5) : [];
-                        setData({ script: scriptPart, prompts: promptPart });
+                        setResultData({ script: scriptPart, prompts: promptPart });
                         setScreen('studio');
-                    } else { alert("AI error or safety block. Try a different topic."); }
-                } catch (e) { alert("System Error: " + e.message); }
+                    } else {
+                        throw new Error(data.error ? data.error.message : "AI safety block or invalid response.");
+                    }
+                } catch (e) {
+                    alert("AI Error: " + e.message + "\nTry a less extreme topic.");
+                }
                 setLoading(false);
             };
 
-            // --- COMPONENTS ---
+            // --- UI SCREENS ---
 
             if (screen === 'splash') return (
-                <div className="h-screen flex flex-col items-center justify-center bg-black relative overflow-hidden">
+                <div className="h-screen flex flex-col items-center justify-center bg-black relative">
                     <div className="scanline"></div>
                     <h1 className="text-9xl mb-4 animate-bounce">⚡</h1>
-                    <h1 className="text-5xl font-bold neon-text tracking-widest text-cyan-400">AutoVidia Pro</h1>
-                    <p className="mt-4 text-gray-500 tracking-[10px] uppercase text-[10px]">Neural Content Engine</p>
+                    <h1 className="text-5xl font-bold neon-text text-cyan-400">AutoVidia Pro</h1>
+                    <p className="mt-4 text-gray-600 tracking-[10px] text-[10px]">AI ENGINE V4.0</p>
                 </div>
             );
 
             if (screen === 'login') return (
                 <div className="h-screen flex items-center justify-center p-6 bg-black">
                     <div className="glass p-12 rounded-[40px] w-full max-w-sm text-center neon-border">
-                        <h2 className="text-4xl font-bold mb-6 neon-text text-cyan-400">Welcome</h2>
-                        <p className="text-gray-500 text-sm mb-12">Login to your centralized AI video dashboard.</p>
-                        <button onClick={handleLogin} className="w-full bg-white text-black py-4 rounded-2xl flex items-center justify-center gap-4 font-bold text-lg hover:scale-105 transition shadow-xl">
+                        <h2 className="text-3xl font-bold mb-4 neon-text text-cyan-400">OWNER LOGIN</h2>
+                        <p className="text-gray-500 text-sm mb-12">Authorized Access Only</p>
+                        <button onClick={() => auth.signInWithPopup(provider)} className="w-full bg-white text-black py-4 rounded-2xl flex items-center justify-center gap-4 font-bold text-lg hover:bg-gray-200 transition">
                             <img src="https://www.svgrepo.com/show/475656/google-color.svg" className="w-6 h-6" />
                             Sign in with Google
                         </button>
@@ -143,110 +145,85 @@
                 <div className="min-h-screen p-8 bg-black">
                     <div className="flex items-center justify-between mb-12">
                         <div className="flex items-center gap-4">
-                            <img src={user.photoURL} className="w-14 h-14 rounded-full border-2 border-cyan-500 shadow-lg" />
-                            <div>
-                                <h2 className="text-2xl font-bold">{user.displayName}</h2>
-                                <span className="text-[10px] bg-cyan-950 text-cyan-400 px-3 py-1 rounded-full uppercase font-bold tracking-tighter border border-cyan-800">{plan} User</span>
-                            </div>
+                            <img src={user.photoURL} className="w-12 h-12 rounded-full border border-cyan-500" />
+                            <h2 className="text-lg font-bold">Hi, {user.displayName}</h2>
                         </div>
-                        <button onClick={() => auth.signOut()} className="text-red-500 font-bold text-xs uppercase tracking-widest">Exit</button>
+                        <button onClick={() => auth.signOut()} className="text-red-500 text-xs font-bold underline">LOGOUT</button>
                     </div>
-                    
-                    <h2 className="text-4xl font-bold mb-10 neon-text text-center">SELECT YOUR NICHE</h2>
-                    <div className="grid gap-6 max-w-2xl mx-auto">
-                        {[{id:'horror', i:'👻', t:'Horror Stories', d:'Dark scripts & uncanny visuals'},
-                          {id:'motivation', i:'🔥', t:'Motivation', d:'Cinematic quotes & stock DNA'},
-                          {id:'facts', i:'🧠', t:'AI Facts', d:'Deep learning tech news'},
-                          {id:'food', i:'🍔', t:'Food / Vlog', d:'Automatic clip editing engine'}].map(g => (
-                            <div key={g.id} onClick={() => { setGenre(g.id); setScreen('style_dna'); }} 
-                                 className="glass p-8 rounded-3xl flex items-center justify-between cursor-pointer border border-transparent hover:border-cyan-500 transition group shadow-2xl">
-                                <div className="flex items-center gap-6">
-                                    <span className="text-5xl">{g.i}</span>
-                                    <div>
-                                        <h3 className="text-2xl font-bold group-hover:text-cyan-400">{g.t}</h3>
-                                        <p className="text-sm text-gray-500">{g.d}</p>
-                                    </div>
-                                </div>
-                                <span className="text-2xl text-gray-700">➜</span>
+                    <h2 className="text-3xl font-bold mb-10 neon-text text-center">SELECT CATEGORY</h2>
+                    <div className="grid gap-6 max-w-md mx-auto">
+                        {['Horror', 'Motivation', 'Facts', 'Food'].map(g => (
+                            <div key={g} onClick={() => { setGenre(g); setScreen('style_setup'); }} 
+                                 className="glass p-6 rounded-3xl flex justify-between items-center cursor-pointer border border-transparent hover:border-cyan-500 transition">
+                                <span className="text-xl font-bold uppercase tracking-widest">{g}</span>
+                                <span className="text-cyan-400">➜</span>
                             </div>
                         ))}
                     </div>
                 </div>
             );
 
-            if (screen === 'style_dna') return (
+            if (screen === 'style_setup') return (
                 <div className="min-h-screen p-10 bg-black">
-                    <button onClick={() => setScreen('genre')} className="text-cyan-500 font-bold mb-10">⇠ BACK</button>
+                    <button onClick={() => setScreen('genre')} className="text-gray-500 font-bold mb-8">⇠ BACK</button>
                     <h2 className="text-4xl font-bold mb-4 neon-text">🧬 STYLE DNA</h2>
-                    <p className="text-gray-400 mb-10">Describe the aesthetic. This defines how AI paints your visuals.</p>
+                    <p className="text-gray-400 mb-10 text-sm italic">Define the visual aesthetic for your images.</p>
                     
                     <textarea 
-                        className="w-full h-48 bg-gray-950 border border-gray-800 rounded-[30px] p-6 text-cyan-100 focus:border-cyan-500 outline-none mb-10 text-lg shadow-inner"
-                        placeholder="E.g. Vintage 35mm film, grainy, dark shadows, realistic cinematic horror, muted greens and blues, dutch angle shots..."
+                        className="w-full h-40 bg-gray-950 border border-gray-800 rounded-3xl p-6 text-cyan-100 focus:border-cyan-500 outline-none mb-10"
+                        placeholder="E.g. Realistic horror, grainy 35mm film, dramatic shadows, 8k..."
+                        value={styleDNA}
                         onChange={(e) => setStyleDNA(e.target.value)}
                     ></textarea>
                     
-                    <h2 className="text-2xl font-bold mb-4">What's the Story Topic?</h2>
+                    <h2 className="text-xl font-bold mb-4">Topic / Prompt</h2>
                     <input 
                         type="text" 
                         className="w-full bg-gray-950 border border-gray-800 rounded-2xl p-6 text-white mb-12 focus:border-cyan-500 outline-none"
-                        placeholder="E.g. A cursed train platform that only appears at midnight..."
+                        placeholder="E.g. A haunted doll in a creepy nursery..."
+                        value={topic}
                         onChange={(e) => setTopic(e.target.value)}
                     />
                     
-                    <button onClick={generateAssets} className="w-full btn-neon py-6 rounded-[30px] font-bold text-2xl uppercase tracking-[5px] shadow-2xl transition active:scale-95">
-                        {loading ? 'Processing...' : 'Engage Engine 🪄'}
+                    <button onClick={generateAssets} className="w-full btn-neon py-6 rounded-[30px] font-bold text-2xl uppercase tracking-[5px] transition active:scale-95">
+                        {loading ? <span className="loader"></span> : 'START ENGINE 🪄'}
                     </button>
                 </div>
             );
 
             if (screen === 'studio') return (
                 <div className="min-h-screen p-8 bg-black">
-                    <h2 className="text-3xl font-bold mb-10 neon-text text-center uppercase tracking-[10px]">Production Studio</h2>
+                    <div className="flex justify-between mb-10">
+                        <button onClick={() => setScreen('style_setup')} className="text-gray-500 underline">Change Style</button>
+                        <h2 className="text-2xl font-bold neon-text tracking-widest">STUDIO</h2>
+                    </div>
                     
-                    <div className="grid lg:grid-cols-2 gap-10">
-                        {/* Script Section */}
+                    <div className="grid lg:grid-cols-2 gap-8">
                         <div className="glass p-8 rounded-[40px] neon-border">
-                            <h3 className="font-bold text-cyan-400 mb-6 flex items-center gap-2 uppercase tracking-widest text-sm">
-                                <span className="w-2 h-2 bg-cyan-400 rounded-full"></span> AI Viral Script (60s)
-                            </h3>
-                            <div className="text-lg text-gray-300 h-[450px] overflow-y-auto leading-relaxed scrollbar-hide pr-4 italic">
-                                {data.script}
+                            <h3 className="font-bold text-cyan-400 mb-6 uppercase text-xs tracking-widest">Viral Script (60s)</h3>
+                            <div className="text-lg text-gray-300 h-[400px] overflow-y-auto italic">
+                                {resultData.script}
                             </div>
                         </div>
 
-                        {/* Production Controls */}
-                        <div className="space-y-8">
-                            <div className="p-10 border-2 border-dashed border-gray-800 rounded-[40px] text-center bg-gray-950/50">
-                                <p className="text-xl font-bold text-cyan-300 mb-2">Step 2: Voiceover Input</p>
-                                <p className="text-gray-600 text-xs mb-6 italic">Upload your recorded MP3 file based on the script</p>
-                                <button className="bg-white text-black px-10 py-3 rounded-2xl font-bold text-sm hover:bg-cyan-400 transition">Select File</button>
+                        <div className="space-y-8 text-center">
+                            <div className="p-10 border-2 border-dashed border-gray-800 rounded-[40px] bg-gray-950/50">
+                                <p className="text-xl font-bold text-cyan-300 mb-4">Step 2: Voiceover Upload</p>
+                                <input type="file" id="audio" className="hidden" />
+                                <label htmlFor="audio" className="bg-white text-black px-10 py-3 rounded-2xl font-bold cursor-pointer hover:bg-cyan-400 transition inline-block">
+                                    Choose MP3 File
+                                </label>
                             </div>
                             
-                            <div className="p-8 glass rounded-[40px]">
-                                <h3 className="font-bold mb-6 text-xs uppercase tracking-widest text-gray-400">Advanced Post-Production Logic</h3>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="bg-cyan-900/30 p-4 rounded-2xl border border-cyan-800">
-                                        <p className="text-[10px] text-cyan-400 font-bold mb-1">TRANSITIONS</p>
-                                        <p className="text-xs text-white">Crossfade 1.0s</p>
-                                    </div>
-                                    <div className="bg-purple-900/30 p-4 rounded-2xl border border-purple-800">
-                                        <p className="text-[10px] text-purple-400 font-bold mb-1">CAMERA FX</p>
-                                        <p className="text-xs text-white">Ken Burns Zoom</p>
-                                    </div>
-                                    <div className="bg-red-900/30 p-4 rounded-2xl border border-red-800">
-                                        <p className="text-[10px] text-red-400 font-bold mb-1">AUDIO TRACKS</p>
-                                        <p className="text-xs text-white">SFX Layering ON</p>
-                                    </div>
-                                    <div className="bg-blue-900/30 p-4 rounded-2xl border border-blue-800">
-                                        <p className="text-[10px] text-blue-400 font-bold mb-1">CAPTIONS</p>
-                                        <p className="text-xs text-white">Dynamic Neon</p>
-                                    </div>
-                                </div>
+                            <div className="p-8 glass rounded-[40px] grid grid-cols-2 gap-4">
+                                <div className="p-4 bg-cyan-900/20 rounded-2xl border border-cyan-800"><p className="text-[10px] text-cyan-400">TRANSITION</p><p className="text-xs">Crossfade</p></div>
+                                <div className="p-4 bg-purple-900/20 rounded-2xl border border-purple-800"><p className="text-[10px] text-purple-400">CAMERA</p><p className="text-xs">Ken Burns</p></div>
+                                <div className="p-4 bg-red-900/20 rounded-2xl border border-red-800"><p className="text-[10px] text-red-400">AUDIO</p><p className="text-xs">SFX Master</p></div>
+                                <div className="p-4 bg-blue-900/20 rounded-2xl border border-blue-800"><p className="text-[10px] text-blue-400">EXPORT</p><p className="text-xs">9:16 HD</p></div>
                             </div>
 
-                            <button className="w-full py-6 rounded-[30px] font-bold bg-gray-900 text-gray-600 border border-gray-800 cursor-not-allowed text-xl shadow-inner">
-                                COMPILE & EXPORT (9:16 HD) 🎬
+                            <button className="w-full py-6 rounded-[30px] font-bold bg-gray-900 text-gray-700 border border-gray-800">
+                                COMPILE VIDEO 🎬
                             </button>
                         </div>
                     </div>
