@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AutoVidia Pro | The Viral Engine</title>
+    <title>AutoVidia Pro | AI Content Factory</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -20,7 +20,7 @@
         .glass { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(15px); border: 1px solid rgba(255,255,255,0.08); }
         .btn-neon { background: linear-gradient(90deg, #ff00cc, #3333ff); box-shadow: 0 0 15px #ff00cc; border-radius: 30px; }
         .btn-neon:hover { transform: scale(1.02); box-shadow: 0 0 30px #ff00cc; }
-        .loader { width: 48px; height: 48px; border: 5px solid #FFF; border-bottom-color: #ff00cc; border-radius: 50%; display: inline-block; animation: rotation 1s linear infinite; }
+        .loader { width: 40px; height: 40px; border: 4px solid #FFF; border-bottom-color: #ff00cc; border-radius: 50%; display: inline-block; animation: rotation 1s linear infinite; }
         @keyframes rotation { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
@@ -28,7 +28,7 @@
     <div id="root"></div>
 
     <script type="text/babel">
-        // --- 1. CONFIGURATION ---
+        // --- 1. CONFIG ---
         const firebaseConfig = {
             apiKey: "AIzaSyAdABtoNg2Tad_ywUGsvjQOeDpf7dqV4Fw",
             authDomain: "autovidia-59faa.firebaseapp.com",
@@ -39,7 +39,6 @@
             appId: "1:851674280896:web:810f999c8d68776ef50e25"
         };
 
-        // GOOGLE KEY
         const GEMINI_KEY = "AIzaSyAPP-eSsSvSgoADiR26wtyed-Fi7E_RjrI";
 
         firebase.initializeApp(firebaseConfig);
@@ -58,13 +57,12 @@
             const [loading, setLoading] = useState(false);
             const [result, setResult] = useState({ script: '', prompts: [] });
 
-            // --- AUTH ---
             useEffect(() => {
                 const timer = setTimeout(() => {
                     auth.onAuthStateChanged((u) => {
                         if (u) {
                             setUser(u);
-                            db.ref('users/' + u.uid).update({ name: u.displayName, photo: u.photoURL });
+                            db.ref('users/' + u.uid).update({ name: u.displayName, lastActive: Date.now() });
                             setScreen('genre');
                         } else { setScreen('login'); }
                     });
@@ -72,68 +70,62 @@
                 return () => clearTimeout(timer);
             }, []);
 
-            // --- THE ULTIMATE GEMINI FIX (V1 STABLE) ---
+            // --- THE AUTO-DETECT BRAHMASTRA ENGINE ---
             const startEngine = async () => {
-                if(!topic || !styleDNA) return alert("Bhai, Style aur Topic dono bharo!");
+                if(!topic || !styleDNA) return alert("Style and Topic missing!");
                 setLoading(true);
-                
-                try {
-                    const prompt = `Task: Create a 60s viral ${genre} script. Topic: ${topic}. Visual Style: ${styleDNA}. 
-                    Also give 12 high-quality AI image prompts. 
-                    Format: SCRIPT: [text] PROMPTS: [p1, p2...]`;
 
-                    // Using the Stable v1 endpoint instead of v1beta
-                    const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`;
+                const prompt = `Task: Write 60s viral ${genre} script. Topic: ${topic}. Style: ${styleDNA}. Provide 10 cinematic image prompts. Format: SCRIPT: [text] PROMPTS: [p1, p2...]`;
 
-                    const res = await fetch(url, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            contents: [{ parts: [{ text: prompt }] }]
-                        })
-                    });
+                // Try multiple combinations of versions and model names
+                const configs = [
+                    { v: 'v1beta', m: 'gemini-1.5-flash' },
+                    { v: 'v1', m: 'gemini-1.5-flash' },
+                    { v: 'v1beta', m: 'gemini-pro' },
+                    { v: 'v1', m: 'gemini-pro' }
+                ];
 
-                    const data = await res.json();
+                let success = false;
 
-                    if (data.candidates && data.candidates[0]) {
-                        const raw = data.candidates[0].content.parts[0].text;
-                        const scriptPart = raw.split('PROMPTS:')[0].replace('SCRIPT:', '').trim();
-                        const promptPart = raw.split('PROMPTS:')[1] ? raw.split('PROMPTS:')[1].split('\n').filter(p => p.length > 5) : [];
-                        setResult({ script: scriptPart, prompts: promptPart });
-                        setScreen('studio');
-                    } else {
-                        // Fallback to gemini-pro if flash fails
-                        alert("Flash model busy, trying Pro model...");
-                        const proUrl = `https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key=${GEMINI_KEY}`;
-                        const resPro = await fetch(proUrl, {
+                for (let config of configs) {
+                    if (success) break;
+                    try {
+                        const url = `https://generativelanguage.googleapis.com/${config.v}/models/${config.m}:generateContent?key=${GEMINI_KEY}`;
+                        const res = await fetch(url, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
                         });
-                        const dataPro = await resPro.json();
-                        const rawPro = dataPro.candidates[0].content.parts[0].text;
-                        setResult({ script: rawPro, prompts: [] });
-                        setScreen('studio');
-                    }
-                } catch (e) {
-                    alert("Google API Error: " + e.message);
+                        const data = await res.json();
+
+                        if (data.candidates && data.candidates[0]) {
+                            const raw = data.candidates[0].content.parts[0].text;
+                            const scriptPart = raw.split('PROMPTS:')[0].replace('SCRIPT:', '').trim();
+                            const promptPart = raw.split('PROMPTS:')[1] ? raw.split('PROMPTS:')[1].split('\n').filter(p => p.length > 5) : [];
+                            setResult({ script: scriptPart, prompts: promptPart });
+                            setScreen('studio');
+                            success = true;
+                        }
+                    } catch (e) { console.log(`Config ${config.m} failed, trying next...`); }
                 }
+
+                if (!success) alert("Critical Error: AI models are currently busy or Key is invalid. Check Google AI Studio.");
                 setLoading(false);
             };
 
-            // --- PAGES ---
+            // --- UI SCREENS ---
 
             if (screen === 'splash') return (
                 <div className="h-screen flex flex-col items-center justify-center bg-black">
-                    <h1 className="text-8xl mb-4 animate-pulse">⚡</h1>
-                    <h1 className="text-4xl font-bold neon-text text-cyan-400 uppercase tracking-widest">AutoVidia Pro</h1>
+                    <h1 className="text-9xl mb-4">⚡</h1>
+                    <h1 className="text-4xl font-bold neon-text text-cyan-400 tracking-[15px]">AutoVidia</h1>
                 </div>
             );
 
             if (screen === 'login') return (
                 <div className="h-screen flex items-center justify-center bg-black p-6">
-                    <div className="glass p-12 rounded-[40px] w-full max-w-sm text-center neon-border">
-                        <h2 className="text-2xl font-bold mb-8 neon-text text-cyan-400">CREATOR LOGIN</h2>
+                    <div className="glass p-12 rounded-[50px] w-full max-w-sm text-center neon-border">
+                        <h2 className="text-3xl font-bold mb-10 neon-text text-cyan-400">ENTER STUDIO</h2>
                         <button onClick={() => auth.signInWithPopup(provider)} className="w-full bg-white text-black py-4 rounded-2xl flex items-center justify-center gap-4 font-bold hover:bg-gray-200 transition">
                             <img src="https://www.svgrepo.com/show/475656/google-color.svg" className="w-6 h-6" />
                             Sign in with Google
@@ -145,15 +137,15 @@
             if (screen === 'genre') return (
                 <div className="min-h-screen p-8 bg-black">
                     <div className="flex justify-between items-center mb-12">
-                        <h2 className="text-xl font-bold">Hi, {user.displayName.split(' ')[0]} 👋</h2>
-                        <button onClick={() => auth.signOut()} className="text-gray-500 text-xs">Logout</button>
+                        <h2 className="text-xl font-bold italic">Creator: {user.displayName}</h2>
+                        <button onClick={() => auth.signOut()} className="text-red-500 text-xs">Logout</button>
                     </div>
-                    <h2 className="text-3xl font-bold mb-10 text-center neon-text">SELECT NICHE</h2>
+                    <h2 className="text-4xl font-bold mb-12 text-center neon-text">CHOOSE NICHE</h2>
                     <div className="grid gap-6 max-w-md mx-auto">
-                        {['Horror', 'Motivation', 'AI Facts', 'Food'].map(g => (
+                        {['Horror', 'Motivation', 'Facts', 'Food'].map(g => (
                             <div key={g} onClick={() => { setGenre(g); setScreen('setup'); }} 
-                                 className="glass p-6 rounded-3xl flex justify-between items-center cursor-pointer border border-transparent hover:border-cyan-500 transition">
-                                <span className="text-xl font-bold tracking-widest">{g.toUpperCase()}</span>
+                                 className="glass p-8 rounded-3xl flex justify-between items-center cursor-pointer border border-transparent hover:border-cyan-500 transition">
+                                <span className="text-xl font-bold uppercase tracking-[5px]">{g}</span>
                                 <span>➜</span>
                             </div>
                         ))}
@@ -164,38 +156,38 @@
             if (screen === 'setup') return (
                 <div className="min-h-screen p-8 bg-black">
                     <button onClick={() => setScreen('genre')} className="text-gray-500 mb-8">← Back</button>
-                    <h2 className="text-3xl font-bold mb-2 neon-text">STYLE DNA</h2>
+                    <h2 className="text-4xl font-bold mb-2 neon-text">STYLE DNA</h2>
                     <textarea 
-                        className="w-full h-32 bg-gray-950 border border-gray-800 rounded-3xl p-6 text-cyan-100 focus:border-cyan-500 outline-none mb-8"
-                        placeholder="Visual look (e.g. realistic horror, dark lighting...)"
+                        className="w-full h-32 bg-gray-950 border border-gray-800 rounded-3xl p-6 text-cyan-100 focus:border-cyan-500 outline-none mb-10"
+                        placeholder="Style (e.g. realistic horror, dark lighting...)"
                         onChange={(e) => setStyleDNA(e.target.value)}
                     ></textarea>
-                    <h2 className="text-xl font-bold mb-4">Topic</h2>
+                    <h2 className="text-xl font-bold mb-4 uppercase tracking-widest text-gray-500">Topic</h2>
                     <input 
                         type="text" 
                         className="w-full bg-gray-950 border border-gray-800 rounded-2xl p-6 text-white mb-10 focus:border-cyan-500 outline-none"
-                        placeholder="Video topic..."
+                        placeholder="What is the story about?"
                         onChange={(e) => setTopic(e.target.value)}
                     />
-                    <button onClick={startEngine} className="w-full btn-neon py-6 rounded-[30px] font-bold text-xl uppercase tracking-[4px]">
-                        {loading ? <span className="loader"></span> : 'GENERATE ASSETS'}
+                    <button onClick={startEngine} className="w-full btn-neon py-6 rounded-[30px] font-bold text-2xl uppercase tracking-[5px]">
+                        {loading ? <span className="loader"></span> : 'ENGAGE ENGINE'}
                     </button>
                 </div>
             );
 
             if (screen === 'studio') return (
                 <div className="min-h-screen p-8 bg-black">
-                    <h2 className="text-2xl font-bold mb-10 text-center neon-text tracking-[10px]">STUDIO</h2>
+                    <h2 className="text-3xl font-bold mb-10 text-center neon-text tracking-[10px]">PRODUCTION</h2>
                     <div className="glass p-8 rounded-[40px] mb-10 neon-border">
-                        <h3 className="text-cyan-400 text-xs font-bold mb-4">AI SCRIPT (60s)</h3>
-                        <div className="text-lg text-gray-300 italic h-64 overflow-y-auto">{result.script}</div>
+                        <h3 className="text-cyan-400 text-xs font-bold mb-6 tracking-widest">AI SCRIPT (READY)</h3>
+                        <div className="text-lg text-gray-300 italic h-72 overflow-y-auto leading-relaxed">{result.script}</div>
                     </div>
-                    <div className="p-10 border-2 border-dashed border-gray-800 rounded-[40px] text-center mb-8">
-                        <p className="text-cyan-300 font-bold mb-4">Step 2: Upload Voiceover</p>
-                        <button className="bg-white text-black px-8 py-3 rounded-2xl font-bold text-sm">Select MP3</button>
+                    <div className="p-12 border-2 border-dashed border-gray-800 rounded-[50px] text-center mb-10 bg-gray-950/30">
+                        <p className="text-cyan-300 font-bold mb-4 uppercase tracking-widest">Step 2: Upload Voice</p>
+                        <button className="bg-white text-black px-10 py-3 rounded-2xl font-bold text-sm shadow-xl">Select MP3</button>
                     </div>
-                    <button className="w-full py-6 rounded-[30px] font-bold bg-gray-900 text-gray-700 border border-gray-800">
-                        COMPILE VIDEO 🎬
+                    <button className="w-full py-6 rounded-[30px] font-bold bg-gray-900 text-gray-700 border border-gray-800 text-xl">
+                        COMPILE & EXPORT HD 🎬
                     </button>
                 </div>
             );
