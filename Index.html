@@ -3,196 +3,176 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AutoVidia Pro | AI Content Factory</title>
+    <title>AutoVidia Pro | Neural Core</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
-    
+    <!-- Zip Library for Download All -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Inter:wght@300;500;700&display=swap');
-        body { background-color: #000; color: #fff; font-family: 'Inter', sans-serif; overflow-x: hidden; }
-        .neon-text { text-shadow: 0 0 10px #00f2fe, 0 0 20px #00f2fe; font-family: 'Orbitron', sans-serif; }
-        .neon-border { border: 1px solid rgba(0, 242, 254, 0.4); box-shadow: 0 0 20px rgba(0, 242, 254, 0.1); }
-        .glass { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(15px); border: 1px solid rgba(255,255,255,0.08); }
-        .btn-neon { background: linear-gradient(90deg, #ff00cc, #3333ff); box-shadow: 0 0 15px #ff00cc; border-radius: 30px; }
-        .btn-neon:hover { transform: scale(1.02); box-shadow: 0 0 30px #ff00cc; }
-        .loader { width: 40px; height: 40px; border: 4px solid #FFF; border-bottom-color: #ff00cc; border-radius: 50%; display: inline-block; animation: rotation 1s linear infinite; }
-        @keyframes rotation { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@500;700&display=swap');
+        body { background-color: #000; color: #fff; font-family: 'Rajdhani', sans-serif; }
+        .neon-text { text-shadow: 0 0 10px #00f2fe, 0 0 20px #00f2fe; font-family: 'Orbitron'; }
+        .neon-border { border: 1px solid #00f2fe; box-shadow: 0 0 15px rgba(0, 242, 254, 0.4); }
+        .glass { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(15px); border: 1px solid rgba(255,255,255,0.1); }
+        .btn-main { background: linear-gradient(90deg, #ff00cc, #3333ff); transition: 0.3s; }
+        .btn-main:hover { transform: scale(1.02); box-shadow: 0 0 30px #ff00cc; }
+        .loader { width: 30px; height: 30px; border: 3px solid #111; border-left-color: #00f2fe; border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .fade-in { animation: fadeIn 0.8s ease-in; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
     </style>
 </head>
 <body>
     <div id="root"></div>
 
     <script type="text/babel">
-        // --- 1. CONFIG ---
-        const firebaseConfig = {
-            apiKey: "AIzaSyAdABtoNg2Tad_ywUGsvjQOeDpf7dqV4Fw",
-            authDomain: "autovidia-59faa.firebaseapp.com",
-            databaseURL: "https://autovidia-59faa-default-rtdb.firebaseio.com",
-            projectId: "autovidia-59faa",
-            storageBucket: "autovidia-59faa.firebasestorage.app",
-            messagingSenderId: "851674280896",
-            appId: "1:851674280896:web:810f999c8d68776ef50e25"
-        };
-
-        const GEMINI_KEY = "AIzaSyAPP-eSsSvSgoADiR26wtyed-Fi7E_RjrI";
-
-        firebase.initializeApp(firebaseConfig);
-        const auth = firebase.auth();
-        const db = firebase.database();
-        const provider = new firebase.auth.GoogleAuthProvider();
-
         const { useState, useEffect } = React;
 
         function App() {
-            const [screen, setScreen] = useState('splash'); 
-            const [user, setUser] = useState(null);
-            const [genre, setGenre] = useState('');
-            const [styleDNA, setStyleDNA] = useState('');
-            const [topic, setTopic] = useState('');
+            const [screen, setScreen] = useState('splash');
+            const [prompts, setPrompts] = useState(['', '', '']);
+            const [images, setImages] = useState([]);
             const [loading, setLoading] = useState(false);
-            const [result, setResult] = useState({ script: '', prompts: [] });
+            const [status, setStatus] = useState('');
 
             useEffect(() => {
-                const timer = setTimeout(() => {
-                    auth.onAuthStateChanged((u) => {
-                        if (u) {
-                            setUser(u);
-                            db.ref('users/' + u.uid).update({ name: u.displayName, lastActive: Date.now() });
-                            setScreen('genre');
-                        } else { setScreen('login'); }
-                    });
-                }, 2500);
-                return () => clearTimeout(timer);
+                setTimeout(() => setScreen('app'), 2500);
             }, []);
 
-            // --- THE AUTO-DETECT BRAHMASTRA ENGINE ---
-            const startEngine = async () => {
-                if(!topic || !styleDNA) return alert("Style and Topic missing!");
+            // --- THE UNSTOPPABLE CLIENT-SIDE ENGINE ---
+            const generateImages = async () => {
+                if(prompts.filter(p => p).length === 0) return alert("Pehle kuch likho toh sahi!");
                 setLoading(true);
-
-                const prompt = `Task: Write 60s viral ${genre} script. Topic: ${topic}. Style: ${styleDNA}. Provide 10 cinematic image prompts. Format: SCRIPT: [text] PROMPTS: [p1, p2...]`;
-
-                // Try multiple combinations of versions and model names
-                const configs = [
-                    { v: 'v1beta', m: 'gemini-1.5-flash' },
-                    { v: 'v1', m: 'gemini-1.5-flash' },
-                    { v: 'v1beta', m: 'gemini-pro' },
-                    { v: 'v1', m: 'gemini-pro' }
-                ];
-
-                let success = false;
-
-                for (let config of configs) {
-                    if (success) break;
+                const results = [];
+                
+                for (let i = 0; i < prompts.length; i++) {
+                    if (!prompts[i]) continue;
+                    setStatus(`Synthesizing Scene ${i+1}...`);
+                    
+                    // Logic: Hum client-side fetch karenge taaki user ka IP use ho
+                    // seedha browser se call jayegi, koi token nahi chahiye
+                    const styleDNA = "cinematic 8k resolution, photorealistic, master lighting, highly detailed, sharp focus";
+                    const fullPrompt = `${prompts[i]}, ${styleDNA}`;
+                    const seed = Math.floor(Math.random() * 10000000);
+                    
                     try {
-                        const url = `https://generativelanguage.googleapis.com/${config.v}/models/${config.m}:generateContent?key=${GEMINI_KEY}`;
-                        const res = await fetch(url, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
-                        });
-                        const data = await res.json();
-
-                        if (data.candidates && data.candidates[0]) {
-                            const raw = data.candidates[0].content.parts[0].text;
-                            const scriptPart = raw.split('PROMPTS:')[0].replace('SCRIPT:', '').trim();
-                            const promptPart = raw.split('PROMPTS:')[1] ? raw.split('PROMPTS:')[1].split('\n').filter(p => p.length > 5) : [];
-                            setResult({ script: scriptPart, prompts: promptPart });
-                            setScreen('studio');
-                            success = true;
+                        const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(fullPrompt)}?width=1080&height=1920&nologo=true&seed=${seed}&model=flux`;
+                        
+                        const response = await fetch(url);
+                        const blob = await response.blob();
+                        
+                        // Security check: Agar image bohot choti hai (banner), toh retry karenge
+                        if (blob.size < 50000) {
+                            throw new Error("Rate Limit Banner Detected");
                         }
-                    } catch (e) { console.log(`Config ${config.m} failed, trying next...`); }
-                }
 
-                if (!success) alert("Critical Error: AI models are currently busy or Key is invalid. Check Google AI Studio.");
+                        results.push({
+                            url: URL.createObjectURL(blob),
+                            blob: blob,
+                            name: `AutoVidia_Scene_${i+1}.jpg`
+                        });
+                    } catch (e) {
+                        console.error(e);
+                        // Auto-Retry with a different seed if failed
+                        i--; 
+                        await new Promise(r => setTimeout(r, 1500));
+                    }
+                }
+                setImages(results);
                 setLoading(false);
+                setStatus('');
             };
 
-            // --- UI SCREENS ---
+            // --- ZIP DOWNLOAD FUNCTION ---
+            const downloadAll = async () => {
+                const zip = new JSZip();
+                images.forEach(img => zip.file(img.name, img.blob));
+                const content = await zip.generateAsync({ type: "blob" });
+                const link = document.createElement("a");
+                link.href = URL.createObjectURL(content);
+                link.download = "AutoVidia_Pro_Assets.zip";
+                link.click();
+            };
 
             if (screen === 'splash') return (
                 <div className="h-screen flex flex-col items-center justify-center bg-black">
-                    <h1 className="text-9xl mb-4">⚡</h1>
-                    <h1 className="text-4xl font-bold neon-text text-cyan-400 tracking-[15px]">AutoVidia</h1>
+                    <h1 className="text-8xl mb-4 animate-pulse">⚡</h1>
+                    <h1 className="text-4xl font-bold neon-text text-cyan-400 tracking-[10px]">AutoVidia</h1>
+                    <p className="mt-4 text-gray-600 text-xs tracking-widest uppercase font-bold">Neural Engine v6.0</p>
                 </div>
             );
 
-            if (screen === 'login') return (
-                <div className="h-screen flex items-center justify-center bg-black p-6">
-                    <div className="glass p-12 rounded-[50px] w-full max-w-sm text-center neon-border">
-                        <h2 className="text-3xl font-bold mb-10 neon-text text-cyan-400">ENTER STUDIO</h2>
-                        <button onClick={() => auth.signInWithPopup(provider)} className="w-full bg-white text-black py-4 rounded-2xl flex items-center justify-center gap-4 font-bold hover:bg-gray-200 transition">
-                            <img src="https://www.svgrepo.com/show/475656/google-color.svg" className="w-6 h-6" />
-                            Sign in with Google
-                        </button>
-                    </div>
-                </div>
-            );
+            return (
+                <div className="min-h-screen p-6 max-w-2xl mx-auto fade-in">
+                    <header className="flex justify-between items-center mb-10">
+                        <div>
+                            <h1 className="text-2xl font-bold neon-text text-cyan-400 uppercase">PRO FACTORY</h1>
+                            <p className="text-[10px] text-gray-500 uppercase tracking-widest">Unlimited Client-Side Rendering</p>
+                        </div>
+                        <div className="w-10 h-10 rounded-full border border-cyan-500 flex items-center justify-center text-cyan-500 text-xs font-bold">AI</div>
+                    </header>
 
-            if (screen === 'genre') return (
-                <div className="min-h-screen p-8 bg-black">
-                    <div className="flex justify-between items-center mb-12">
-                        <h2 className="text-xl font-bold italic">Creator: {user.displayName}</h2>
-                        <button onClick={() => auth.signOut()} className="text-red-500 text-xs">Logout</button>
-                    </div>
-                    <h2 className="text-4xl font-bold mb-12 text-center neon-text">CHOOSE NICHE</h2>
-                    <div className="grid gap-6 max-w-md mx-auto">
-                        {['Horror', 'Motivation', 'Facts', 'Food'].map(g => (
-                            <div key={g} onClick={() => { setGenre(g); setScreen('setup'); }} 
-                                 className="glass p-8 rounded-3xl flex justify-between items-center cursor-pointer border border-transparent hover:border-cyan-500 transition">
-                                <span className="text-xl font-bold uppercase tracking-[5px]">{g}</span>
-                                <span>➜</span>
+                    {/* INPUT SECTION */}
+                    <div className="space-y-4 mb-8">
+                        {prompts.map((p, idx) => (
+                            <div key={idx} className="glass p-2 rounded-2xl flex items-center neon-border">
+                                <span className="w-10 text-center text-cyan-700 font-bold font-mono">{idx+1}</span>
+                                <input 
+                                    value={p} 
+                                    onChange={(e)=>{
+                                        const n = [...prompts]; n[idx]=e.target.value; setPrompts(n);
+                                    }} 
+                                    placeholder="Describe your visual scene..." 
+                                    className="flex-1 bg-transparent p-3 outline-none text-sm text-cyan-100 placeholder-gray-700" 
+                                />
                             </div>
                         ))}
                     </div>
-                </div>
-            );
 
-            if (screen === 'setup') return (
-                <div className="min-h-screen p-8 bg-black">
-                    <button onClick={() => setScreen('genre')} className="text-gray-500 mb-8">← Back</button>
-                    <h2 className="text-4xl font-bold mb-2 neon-text">STYLE DNA</h2>
-                    <textarea 
-                        className="w-full h-32 bg-gray-950 border border-gray-800 rounded-3xl p-6 text-cyan-100 focus:border-cyan-500 outline-none mb-10"
-                        placeholder="Style (e.g. realistic horror, dark lighting...)"
-                        onChange={(e) => setStyleDNA(e.target.value)}
-                    ></textarea>
-                    <h2 className="text-xl font-bold mb-4 uppercase tracking-widest text-gray-500">Topic</h2>
-                    <input 
-                        type="text" 
-                        className="w-full bg-gray-950 border border-gray-800 rounded-2xl p-6 text-white mb-10 focus:border-cyan-500 outline-none"
-                        placeholder="What is the story about?"
-                        onChange={(e) => setTopic(e.target.value)}
-                    />
-                    <button onClick={startEngine} className="w-full btn-neon py-6 rounded-[30px] font-bold text-2xl uppercase tracking-[5px]">
-                        {loading ? <span className="loader"></span> : 'ENGAGE ENGINE'}
-                    </button>
-                </div>
-            );
-
-            if (screen === 'studio') return (
-                <div className="min-h-screen p-8 bg-black">
-                    <h2 className="text-3xl font-bold mb-10 text-center neon-text tracking-[10px]">PRODUCTION</h2>
-                    <div className="glass p-8 rounded-[40px] mb-10 neon-border">
-                        <h3 className="text-cyan-400 text-xs font-bold mb-6 tracking-widest">AI SCRIPT (READY)</h3>
-                        <div className="text-lg text-gray-300 italic h-72 overflow-y-auto leading-relaxed">{result.script}</div>
+                    {/* CONTROLS */}
+                    <div className="flex gap-4 mb-10">
+                        <button onClick={()=>setPrompts([...prompts, ''])} className="flex-1 glass py-3 rounded-xl border-cyan-900 text-xs font-bold uppercase tracking-widest hover:bg-cyan-950">+ Add Scene</button>
+                        <button onClick={()=>setPrompts(prompts.slice(0,-1))} className="flex-1 glass py-3 rounded-xl border-red-900 text-xs font-bold uppercase tracking-widest hover:bg-red-950">- Remove</button>
                     </div>
-                    <div className="p-12 border-2 border-dashed border-gray-800 rounded-[50px] text-center mb-10 bg-gray-950/30">
-                        <p className="text-cyan-300 font-bold mb-4 uppercase tracking-widest">Step 2: Upload Voice</p>
-                        <button className="bg-white text-black px-10 py-3 rounded-2xl font-bold text-sm shadow-xl">Select MP3</button>
-                    </div>
-                    <button className="w-full py-6 rounded-[30px] font-bold bg-gray-900 text-gray-700 border border-gray-800 text-xl">
-                        COMPILE & EXPORT HD 🎬
+
+                    {/* MAIN ACTION */}
+                    <button 
+                        onClick={generateImages} 
+                        disabled={loading}
+                        className="w-full btn-main py-6 rounded-[25px] font-bold text-xl mb-10 tracking-[5px] uppercase shadow-2xl disabled:opacity-50"
+                    >
+                        {loading ? (
+                            <div className="flex items-center justify-center gap-3">
+                                <div className="loader"></div>
+                                <span className="text-sm tracking-widest">{status}</span>
+                            </div>
+                        ) : "GENERATE ALL ASSETS ✨"}
                     </button>
+
+                    {/* RESULTS GALLERY */}
+                    {images.length > 0 && (
+                        <div className="fade-in">
+                            <div className="grid grid-cols-2 gap-4 mb-8">
+                                {images.map((img, i) => (
+                                    <div key={i} className="rounded-2xl overflow-hidden border border-gray-800 shadow-2xl group relative">
+                                        <img src={img.url} className="w-full aspect-[9/16] object-cover transition group-hover:scale-110" />
+                                        <div className="absolute bottom-0 left-0 right-0 p-2 bg-black/60 text-[8px] text-center uppercase tracking-widest">Scene {i+1}</div>
+                                    </div>
+                                ))}
+                            </div>
+                            <button 
+                                onClick={downloadAll} 
+                                className="w-full bg-cyan-500 text-black py-5 rounded-2xl font-bold text-lg flex items-center justify-center gap-3 hover:bg-white transition shadow-[0_0_30px_rgba(0,255,255,0.4)]"
+                            >
+                                📥 DOWNLOAD ZIP ({images.length} HD IMAGES)
+                            </button>
+                        </div>
+                    )}
                 </div>
             );
-
-            return null;
         }
 
         const root = ReactDOM.createRoot(document.getElementById('root'));
