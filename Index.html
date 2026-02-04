@@ -3,161 +3,110 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AutoVidia Pro | Puter Engine</title>
+    <title>VidForge AI | Create YouTube Videos Automatically</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-    
-    <!-- Puter.js Library (The Game Changer) -->
-    <script src="https://js.puter.com/v2/"></script>
-
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@500;700&display=swap');
-        body { background-color: #000; color: #fff; font-family: 'Rajdhani', sans-serif; }
-        .neon-text { text-shadow: 0 0 10px #00f2fe, 0 0 20px #00f2fe; font-family: 'Orbitron'; }
-        .neon-border { border: 1px solid #00f2fe; box-shadow: 0 0 15px rgba(0, 242, 254, 0.4); }
-        .glass { background: rgba(255, 255, 255, 0.02); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.1); }
-        .btn-puter { background: linear-gradient(90deg, #00f2fe, #4facfe); color: #000; transition: 0.4s; }
-        .btn-puter:hover { transform: translateY(-3px); box-shadow: 0 0 30px #00f2fe; }
-        .loader { width: 30px; height: 30px; border: 3px solid #111; border-left-color: #00f2fe; border-radius: 50%; animation: spin 1s linear infinite; }
-        @keyframes spin { to { transform: rotate(360deg); } }
+        :root { --primary: #00f2ff; --secondary: #7000ff; --bg: #03000a; }
+        body { 
+            background: radial-gradient(circle at top right, #1a0033, #03000a);
+            color: white; font-family: 'Inter', sans-serif; min-height: 100vh;
+        }
+        .font-cyber { font-family: 'Orbitron', sans-serif; }
+        .neon-glow { text-shadow: 0 0 15px rgba(0, 242, 255, 0.7); }
+        .glass-nav { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(255, 255, 255, 0.1); }
+        .btn-gradient { background: linear-gradient(90deg, #7000ff, #00f2ff); transition: 0.3s; }
+        .btn-gradient:hover { box-shadow: 0 0 25px rgba(0, 242, 255, 0.5); transform: scale(1.05); }
+        .card-glass { background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); }
+        .floating { animation: float 4s ease-in-out infinite; }
+        @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-20px); } }
+        .workflow-line { height: 2px; background: linear-gradient(90deg, #7000ff, #00f2ff); flex-grow: 1; }
     </style>
 </head>
 <body>
-    <div id="root"></div>
 
-    <script type="text/babel">
-        const { useState } = React;
-
-        function App() {
-            const [screen, setScreen] = useState('auth');
-            const [prompts, setPrompts] = useState(['', '', '']);
-            const [images, setImages] = useState([]);
-            const [loading, setLoading] = useState(false);
-            const [status, setStatus] = useState('');
-
-            // --- THE PUTER ENGINE (UNLIMITED AI) ---
-            const generateWithPuter = async () => {
-                if(prompts.filter(p => p).length === 0) return alert("Pehle scenes likho!");
-                setLoading(true);
-                const results = [];
-
-                for (let i = 0; i < prompts.length; i++) {
-                    if (!prompts[i]) continue;
-                    setStatus(`Puter AI is painting Scene ${i+1}...`);
-                    
-                    try {
-                        // Puter's Official Image Generation Method
-                        const fullPrompt = `${prompts[i]}, 8k cinematic, photorealistic, master lighting, highly detailed`;
-                        
-                        // puter.ai.txt2img is the magic function
-                        const image = await puter.ai.txt2img(fullPrompt);
-                        
-                        // Puter returns an image object that we can use directly
-                        results.push({
-                            url: image.src,
-                            name: `Scene_${i+1}.jpg`,
-                            blob: await (await fetch(image.src)).blob()
-                        });
-                    } catch (e) {
-                        console.error("Puter Error:", e);
-                        alert(`Scene ${i+1} fail hui. Puter engine busy ho sakta hai.`);
-                    }
-                }
-                setImages(results);
-                setLoading(false);
-                setStatus('');
-            };
-
-            const downloadZip = async () => {
-                const zip = new JSZip();
-                images.forEach(img => zip.file(img.name, img.blob));
-                const content = await zip.generateAsync({ type: "blob" });
-                const link = document.createElement("a");
-                link.href = URL.createObjectURL(content);
-                link.download = "AutoVidia_Puter_Assets.zip";
-                link.click();
-            };
-
-            // SIMPLE PASSWORD GATE
-            if (screen === 'auth') return (
-                <div className="h-screen flex items-center justify-center p-6 bg-black">
-                    <div className="glass p-10 rounded-[40px] w-full max-w-sm text-center neon-border">
-                        <h1 className="text-4xl neon-text text-cyan-400 mb-6">AutoVidia</h1>
-                        <p className="text-gray-500 text-sm mb-8 italic">Powered by Puter.js</p>
-                        <input type="password" id="pass" placeholder="Enter Access Code" className="w-full bg-black border border-gray-700 p-4 rounded-xl mb-6 text-center text-cyan-400 outline-none" />
-                        <button onClick={() => {
-                            if(document.getElementById('pass').value === 'kingkhan123king') setScreen('app');
-                            else alert('Ghalat hai bhai!');
-                        }} className="w-full btn-puter py-4 rounded-xl font-bold uppercase tracking-widest">Connect Engine 🚀</button>
-                    </div>
+    <!-- Header / Navbar -->
+    <nav class="glass-nav sticky top-0 z-50 p-4">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <div class="flex items-center gap-2">
+                <div class="w-10 h-10 bg-gradient-to-tr from-purple-600 to-cyan-400 rounded-lg flex items-center justify-center">
+                    <svg class="w-6 h-6" fill="white" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
                 </div>
-            );
+                <span class="font-cyber text-2xl font-bold tracking-tighter neon-glow uppercase">VidForge AI</span>
+            </div>
+            <div class="hidden md:flex gap-8 text-sm font-medium text-gray-300 uppercase tracking-widest">
+                <a href="#" class="hover:text-cyan-400 transition">Home</a>
+                <a href="#" class="hover:text-cyan-400 transition">Features</a>
+                <a href="#" class="hover:text-cyan-400 transition">Pricing</a>
+                <a href="#" class="hover:text-cyan-400 transition">Login</a>
+            </div>
+            <button class="border border-cyan-400/50 px-6 py-2 rounded-lg text-sm font-bold hover:bg-cyan-400/10 transition uppercase tracking-tighter">Get Started</button>
+        </div>
+    </nav>
 
-            return (
-                <div className="min-h-screen p-6 max-w-2xl mx-auto">
-                    <header className="flex justify-between items-center mb-12">
-                        <h1 className="text-3xl font-bold neon-text text-cyan-400">PUTER FACTORY</h1>
-                        <div className="text-[10px] text-cyan-700 border border-cyan-900 px-3 py-1 rounded-full uppercase tracking-widest font-bold">Unlimited Mode</div>
-                    </header>
+    <!-- Hero Section -->
+    <div class="max-w-7xl mx-auto px-6 pt-12 lg:pt-20 grid lg:grid-cols-2 gap-12 items-center">
+        <div class="space-y-8">
+            <h1 class="text-5xl lg:text-7xl font-bold font-cyber leading-tight">
+                Create <span class="text-cyan-400">YouTube</span> Videos Automatically <span class="text-3xl lg:text-5xl block mt-2 text-white/80">using AI</span>
+            </h1>
+            <p class="text-cyan-400/80 font-cyber text-sm tracking-[0.2em] uppercase">
+                Script → Images → Video → Audio → Edit → Upload
+            </p>
+            <p class="text-xl text-gray-400 font-light">Everything Automated. 100% Free.</p>
+            
+            <div class="flex flex-wrap gap-4">
+                <button class="btn-gradient px-10 py-4 rounded-xl font-bold text-lg uppercase tracking-widest shadow-lg">Start Creating</button>
+                <button class="bg-white/10 px-10 py-4 rounded-xl font-bold text-lg flex items-center gap-3 border border-white/10 hover:bg-white/20 transition uppercase">
+                    <svg class="w-6 h-6 fill-white" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg> Watch Demo
+                </button>
+            </div>
+        </div>
 
-                    {/* DYNAMIC PROMPTS */}
-                    <div className="space-y-4 mb-8">
-                        {prompts.map((p, idx) => (
-                            <div key={idx} className="glass p-2 rounded-2xl flex items-center border border-gray-900 focus-within:border-cyan-500 transition">
-                                <span className="w-10 text-center text-cyan-900 font-bold font-mono">{idx+1}</span>
-                                <input 
-                                    value={p} 
-                                    onChange={(e)=>{
-                                        const n = [...prompts]; n[idx]=e.target.value; setPrompts(n);
-                                    }} 
-                                    placeholder="Describe your visual..." 
-                                    className="flex-1 bg-transparent p-3 outline-none text-sm text-white" 
-                                />
-                            </div>
-                        ))}
-                    </div>
+        <!-- Cyber Robot Image -->
+        <div class="relative flex justify-center items-center">
+            <div class="absolute w-[80%] h-[80%] bg-purple-600/20 blur-[100px] rounded-full"></div>
+            <img src="https://img.freepik.com/premium-photo/futuristic-robot-cyberpunk-style_691560-1428.jpg" 
+                 alt="VidForge AI Robot" class="rounded-3xl border border-white/10 shadow-2xl floating relative z-10 w-full max-w-lg">
+        </div>
+    </div>
 
-                    <div className="flex gap-4 mb-10">
-                        <button onClick={()=>setPrompts([...prompts, ''])} className="flex-1 glass py-3 rounded-xl border-cyan-900 text-xs font-bold uppercase">+ Add</button>
-                        <button onClick={()=>setPrompts(prompts.slice(0,-1))} className="flex-1 glass py-3 rounded-xl border-red-900 text-xs font-bold uppercase">- Remove</button>
-                    </div>
-
-                    <button 
-                        onClick={generateWithPuter} 
-                        disabled={loading}
-                        className="w-full btn-puter py-6 rounded-[25px] font-bold text-xl tracking-[4px] uppercase mb-10 shadow-2xl disabled:opacity-50"
-                    >
-                        {loading ? (
-                            <div className="flex items-center justify-center gap-3">
-                                <div className="loader"></div>
-                                <span className="text-sm">{status}</span>
-                            </div>
-                        ) : "START PUTER ENGINE ✨"}
-                    </button>
-
-                    {images.length > 0 && (
-                        <div className="animate-[fadeIn_1s]">
-                            <div className="grid grid-cols-2 gap-4 mb-10">
-                                {images.map((img, i) => (
-                                    <div key={i} className="rounded-3xl overflow-hidden border border-gray-800 shadow-2xl">
-                                        <img src={img.url} className="w-full aspect-[9/16] object-cover" />
-                                    </div>
-                                ))}
-                            </div>
-                            <button onClick={downloadAll} className="w-full bg-cyan-500 text-black py-5 rounded-[30px] font-bold text-lg flex items-center justify-center gap-3 shadow-2xl hover:bg-white transition">
-                                📥 DOWNLOAD ALL (ZIP)
-                            </button>
-                        </div>
-                    )}
+    <!-- Workflow Section -->
+    <div class="max-w-6xl mx-auto px-6 py-24">
+        <div class="flex flex-col md:flex-row items-center gap-6">
+            <!-- Step 1 -->
+            <div class="flex flex-col items-center gap-4 group">
+                <div class="card-glass p-6 rounded-2xl group-hover:border-cyan-400 transition duration-500">
+                    <svg class="w-10 h-10 text-purple-400" fill="currentColor" viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>
                 </div>
-            );
-        }
+                <p class="font-cyber text-xs text-gray-400 uppercase tracking-widest">AI Script</p>
+            </div>
+            <div class="workflow-line hidden md:block"></div>
+            <!-- Step 2 -->
+            <div class="flex flex-col items-center gap-4 group">
+                <div class="card-glass p-6 rounded-2xl group-hover:border-cyan-400 transition duration-500">
+                    <svg class="w-10 h-10 text-cyan-400" fill="currentColor" viewBox="0 0 24 24"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>
+                </div>
+                <p class="font-cyber text-xs text-gray-400 uppercase tracking-widest text-center">Image Generation</p>
+            </div>
+            <div class="workflow-line hidden md:block"></div>
+            <!-- Step 3 -->
+            <div class="flex flex-col items-center gap-4 group">
+                <div class="card-glass p-6 rounded-2xl group-hover:border-cyan-400 transition duration-500">
+                    <svg class="w-10 h-10 text-blue-400" fill="currentColor" viewBox="0 0 24 24"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/></svg>
+                </div>
+                <p class="font-cyber text-xs text-gray-400 uppercase tracking-widest">Video Editing</p>
+            </div>
+            <div class="workflow-line hidden md:block"></div>
+            <!-- Step 4 -->
+            <div class="flex flex-col items-center gap-4 group">
+                <div class="card-glass p-6 rounded-2xl group-hover:border-cyan-400 transition duration-500">
+                    <svg class="w-10 h-10 text-pink-400" fill="currentColor" viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/><path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>
+                </div>
+                <p class="font-cyber text-xs text-gray-400 uppercase tracking-widest">Voiceover</p>
+            </div>
+        </div>
+    </div>
 
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
-    </script>
 </body>
-</html>
+    </html>
